@@ -1,19 +1,28 @@
+#include <iostream>
 #include "InputManager.h"
 // #include "../DisplayGLFW/display.h"
 #include "game.h"
 #include "../res/includes/glm/glm.hpp"
 #include "stb_image.h"
 
-void convolution(unsigned char* image, int height, int width, unsigned char* kernel, unsigned char* result) {
-    for (int i = 1; i < height - 2; ++i) {
-        for (int j = 1; j < width - 2; ++j) {
+void convolution(const unsigned char* image, int height, int width, float* kernel, unsigned char* result) {
+    int count = 0;
+    for (int i = 0; i < height; ++i) {
+        for (int j = 0; j < width; ++j) {
             int sum = 0;
-            for (int k = 0; k < 3; ++k) {
-                for (int l = 0; l < 3; ++l) {
-                    sum += image[(i + k) * width + (j + l)] * kernel[k * 3 + l];
+            for (int k = 0; k < 3; ++k) { //row i
+                for (int l = 0; l < 3; ++l) { //element ij
+                    int imagei = (i + k-1);
+                    int imagej = (j + l-1);
+                    if(imagei<0) imagei = 1;
+                    if(imagej<0) imagej = 1;
+                    if(imagei>=height) imagei = height-1;
+                    if(imagej>=width) imagej = width-1;
+                    sum += image[imagei * width + imagej] * kernel[k * 3 + l];
                 }
             }
-            result[i * (width - 2) + j] = sum;
+            count++;
+            result[i * (width) + j] = sum;
         }
     }
 }
@@ -39,13 +48,12 @@ int main(int argc,char *argv[])
     std::string lenaFile = "../res/textures/lena256.png";
     int width, height, numComponents;
     unsigned char* data1 = stbi_load((&lenaFile)->c_str(), &width, &height, &numComponents, 4);
-
+    //printf("%d\n%d\n", height, width);
     //implement edge detection
     //1 filter with derivative of gaussian
-
-    unsigned char gaussian_kernel[9] = {1,0,0,0,1,0,0,0,1};
-    auto* data2 = new unsigned char[height*width];
-    convolution(data1, height, width, gaussian_kernel, data2);
+    //float gaussian_kernel[]={0.01,0.08,0.01,0.08,0.64, 0.08,0.01,0.08,0.01}; //small theta
+    unsigned char* data2 = new unsigned char[65536];
+    //convolution(data1, height, width, gaussian_kernel, data2);
     //2 find magnitude and orientation of gradient
     //3 apply non-maximum suppression
     //linking and thresholding
@@ -61,17 +69,17 @@ int main(int argc,char *argv[])
 
     //edge detection
     scn->AddTexture(256, 256, data2);
-    scn->SetShapeTex(0,1);
+    scn->SetShapeTex(0,0);
     scn->CustomDraw(1, 0, Game::BACK, false, false, 1);
 
     //halftone
-    scn->AddTexture("../res/textures/lena256.png", false);
-    scn->SetShapeTex(0,2);
+    scn->AddTexture(256, 256, data1);
+    scn->SetShapeTex(0,1);
     scn->CustomDraw(1, 0, Game::BACK, false, false, 2);
 
     //Floyd-Steinberg Algorithm
-    scn->AddTexture("../res/textures/lena256.png", false);
-    scn->SetShapeTex(0,3);
+    scn->AddTexture(256, 256, data1);
+    scn->SetShapeTex(0,2);
     scn->CustomDraw(1, 0, Game::BACK, false, false, 3);
 
     scn->Motion();
@@ -86,6 +94,7 @@ int main(int argc,char *argv[])
 			
 	}
 	delete scn;
+    stbi_image_free(data1);
     delete[] data2;
 	return 0;
 }
